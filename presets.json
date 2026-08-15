@@ -1,0 +1,146 @@
+{
+  "webp-leve": {
+    "rotulo": "WebP leve (q75)",
+    "categoria": "imagem",
+    "exts": [".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp", ".avif"],
+    "saida_ext": ".webp",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-i", "{in}", "-c:v", "libwebp", "-preset", "picture", "-quality", "75", "-y", "{out}"]
+  },
+  "webp-boa": {
+    "rotulo": "WebP boa (q90)",
+    "categoria": "imagem",
+    "exts": [".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp", ".avif"],
+    "saida_ext": ".webp",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-i", "{in}", "-c:v", "libwebp", "-preset", "picture", "-quality", "90", "-y", "{out}"]
+  },
+  "webp-sem-perda": {
+    "rotulo": "WebP sem perda (real)",
+    "categoria": "imagem",
+    "exts": [".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"],
+    "saida_ext": ".webp",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-i", "{in}", "-c:v", "libwebp", "-lossless", "1", "-compression_level", "6", "-y", "{out}"]
+  },
+  "avif": {
+    "rotulo": "AVIF (menor, lento)",
+    "categoria": "imagem",
+    "exts": [".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"],
+    "saida_ext": ".avif",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-i", "{in}", "-c:v", "libaom-av1", "-still-picture", "1", "-crf", "28", "-b:v", "0", "-cpu-used", "6", "-pix_fmt", "yuv420p", "-y", "{out}"]
+  },
+  "menor-1920": {
+    "rotulo": "Reduzir p/ 1920 + WebP q85",
+    "categoria": "imagem",
+    "exts": [".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp", ".avif"],
+    "saida_ext": ".webp",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-i", "{in}", "-vf", "scale=w='min(iw,1920)':h='min(ih,1920)':force_original_aspect_ratio=decrease", "-c:v", "libwebp", "-preset", "picture", "-quality", "85", "-y", "{out}"]
+  },
+  "upscale-4x": {
+    "rotulo": "Upscale 4x (IA)",
+    "categoria": "ia",
+    "exts": [".jpg", ".jpeg", ".png", ".webp"],
+    "cmd": ["{realesrgan}", "-i", "{in}", "-o", "{out}", "-n", "realesrgan-x4plus", "-m", "{modelos}"]
+  },
+  "upscale-4x-anime": {
+    "rotulo": "Upscale 4x anime (IA)",
+    "categoria": "ia",
+    "exts": [".jpg", ".jpeg", ".png", ".webp"],
+    "cmd": ["{realesrgan}", "-i", "{in}", "-o", "{out}", "-n", "realesrgan-x4plus-anime", "-m", "{modelos}"]
+  },
+  "restaurar": {
+    "rotulo": "Restaurar (IA, mantém tamanho)",
+    "categoria": "ia",
+    "exts": [".jpg", ".jpeg", ".png", ".webp"],
+    "saida_ext": ".png",
+    "handler": "restaurar"
+  },
+  "video-leve": {
+    "rotulo": "Vídeo leve (crf28)",
+    "categoria": "video",
+    "exts": [".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".ts", ".wmv", ".flv"],
+    "saida_ext": ".mp4",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-stats", "-i", "{in}", "-c:v", "libx264", "-crf", "28", "-preset", "slow", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k", "-y", "{out}"]
+  },
+  "video-qualidade": {
+    "rotulo": "Vídeo qualidade (crf20)",
+    "categoria": "video",
+    "exts": [".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".ts", ".wmv", ".flv"],
+    "saida_ext": ".mp4",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-stats", "-i", "{in}", "-c:v", "libx264", "-crf", "20", "-preset", "slow", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-y", "{out}"]
+  },
+  "video-discord": {
+    "rotulo": "Vídeo Discord (≤25 MB)",
+    "categoria": "video",
+    "exts": [".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".ts", ".wmv", ".flv"],
+    "saida_ext": ".mp4",
+    "handler": "video_discord"
+  },
+  "video-av1-gpu": {
+    "rotulo": "Vídeo AV1 rápido (GPU)",
+    "categoria": "video",
+    "exts": [".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".ts", ".wmv", ".flv"],
+    "saida_ext": ".mp4",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-stats", "-i", "{in}", "-c:v", "av1_amf", "-quality", "quality", "-rc", "qvbr", "-qvbr_quality_level", "30", "-c:a", "aac", "-b:a", "128k", "-y", "{out}"]
+  },
+  "video-arquivar": {
+    "rotulo": "Vídeo arquivar (AV1, menor)",
+    "categoria": "video",
+    "exts": [".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".ts", ".wmv", ".flv"],
+    "saida_ext": ".mkv",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-stats", "-i", "{in}", "-c:v", "libsvtav1", "-crf", "32", "-preset", "6", "-c:a", "libopus", "-b:a", "96k", "-y", "{out}"]
+  },
+  "audio-opus": {
+    "rotulo": "Áudio Opus 128k",
+    "categoria": "audio",
+    "exts": [".mp3", ".wav", ".flac", ".m4a", ".ogg", ".opus", ".aac", ".wma"],
+    "saida_ext": ".opus",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-i", "{in}", "-c:a", "libopus", "-b:a", "128k", "-y", "{out}"]
+  },
+  "audio-mp3": {
+    "rotulo": "Áudio MP3 V0",
+    "categoria": "audio",
+    "exts": [".wav", ".flac", ".m4a", ".ogg", ".opus", ".aac", ".wma", ".mp3"],
+    "saida_ext": ".mp3",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-i", "{in}", "-c:a", "libmp3lame", "-q:a", "0", "-y", "{out}"]
+  },
+  "extrair-audio": {
+    "rotulo": "Extrair áudio (Opus)",
+    "categoria": "audio",
+    "exts": [".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".ts", ".wmv", ".flv"],
+    "saida_ext": ".opus",
+    "cmd": ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-i", "{in}", "-vn", "-c:a", "libopus", "-b:a", "128k", "-y", "{out}"]
+  },
+  "normalizar": {
+    "rotulo": "Normalizar volume",
+    "categoria": "audio",
+    "exts": [".mp3", ".wav", ".flac", ".m4a", ".ogg", ".opus", ".aac", ".wma"],
+    "handler": "normalizar"
+  },
+  "pdf-ebook": {
+    "rotulo": "PDF ebook (equilíbrio)",
+    "categoria": "pdf",
+    "exts": [".pdf"],
+    "saida_ext": ".pdf",
+    "cmd": ["{gs}", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.5", "-dPDFSETTINGS=/ebook", "-dNOPAUSE", "-dBATCH", "-dQUIET", "-sOutputFile={out}", "{in}"]
+  },
+  "pdf-tela": {
+    "rotulo": "PDF tela (máx compressão)",
+    "categoria": "pdf",
+    "exts": [".pdf"],
+    "saida_ext": ".pdf",
+    "cmd": ["{gs}", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.5", "-dPDFSETTINGS=/screen", "-dNOPAUSE", "-dBATCH", "-dQUIET", "-sOutputFile={out}", "{in}"]
+  },
+  "7z-ultra": {
+    "rotulo": "7z ultra",
+    "categoria": "compactar",
+    "exts": ["*"],
+    "saida_ext": ".7z",
+    "handler": "compactar"
+  },
+  "zip": {
+    "rotulo": "Zip (compatível)",
+    "categoria": "compactar",
+    "exts": ["*"],
+    "saida_ext": ".zip",
+    "handler": "compactar"
+  }
+}
