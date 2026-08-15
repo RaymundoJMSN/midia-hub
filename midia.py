@@ -129,20 +129,21 @@ def h_restaurar(caminho, destino, preset, ajustes):
     return None
 
 
-def h_video_discord(caminho, destino, preset, ajustes):
-    """2-pass libx264 com alvo de 25 MB."""
-    if caminho.stat().st_size <= 25 * 1024 * 1024:
-        return "já cabe em 25 MB, nada a fazer"
+def h_video_alvo(caminho, destino, preset, ajustes):
+    """2-pass libx264 com tamanho alvo em MB (preset ou ajuste da GUI)."""
+    alvo_mb = float(ajustes.get("alvo_mb") or preset.get("alvo_mb") or 25)
+    if caminho.stat().st_size <= alvo_mb * 1024 * 1024:
+        return f"já cabe em {alvo_mb:g} MB, nada a fazer"
     info = ffprobe_json(caminho, "-show_entries", "format=duration")
     dur = float(info.get("format", {}).get("duration", 0) or 0)
     if not dur:
         return "não consegui ler a duração"
-    alvo_bits = 25 * 1024 * 1024 * 0.97 * 8
+    alvo_bits = alvo_mb * 1024 * 1024 * 0.97 * 8
     audio_bps = 96_000
     video_bps = int(alvo_bits / dur - audio_bps)
     if video_bps < 150_000:
         video_bps = 150_000
-        print("  aviso: vídeo longo demais p/ 25 MB, usando bitrate mínimo (vai passar do limite)")
+        print(f"  aviso: vídeo longo demais p/ {alvo_mb:g} MB, usando bitrate mínimo (vai passar do limite)")
     with tempfile.TemporaryDirectory() as td:
         plog = os.path.join(td, "2pass")
         base = ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-stats", "-i", "{in}",
@@ -200,9 +201,54 @@ def h_compactar(caminho, destino, preset, ajustes):
     return None if r.returncode == 0 else "7z falhou: " + (r.stderr or r.stdout).strip()[:200]
 
 
+def h_video_upscale(caminho, destino, preset, ajustes):
+    """Upscale 2x de vídeo: frames -> realesr-animevideov3 -> remonta com o áudio.
+
+    Lento e usa bastante disco temporário (no X:). Pensado p/ vídeos curtos.
+    """
+    import shutil as _shutil
+    info = ffprobe_json(caminho, "-select_streams", "v:0",
+                        "-show_entries", "stream=r_frame_rate")
+    streams = info.get("streams") or []
+    if not streams:
+        return "não consegui ler o vídeo"
+    fps = streams[0]["r_frame_rate"]
+    tem_audio = bool(ffprobe_json(caminho, "-select_streams", "a",
+                                  "-show_entries", "stream=index").get("streams"))
+    raiz_tmp = RAIZ_BIN.parent / "tmp"  # disco X: — o C: não tem espaço p/ frames
+    raiz_tmp.mkdir(exist_ok=True)
+    td = raiz_tmp / f"upscale-{uuid.uuid4().hex[:8]}"
+    (td / "in").mkdir(parents=True)
+    (td / "out").mkdir()
+    try:
+        if rodar(["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-stats", "-i", "{in}",
+                  "-fps_mode", "passthrough", "{out}"],
+                 **{"in": str(caminho), "out": str(td / "in" / "%08d.png")}) != 0:
+            return "extração de frames falhou"
+        n = len(list((td / "in").glob("*.png")))
+        print(f"  {n} frames, subindo 2x na GPU...")
+        if rodar(["{realesrgan}", "-i", str(td / "in"), "-o", str(td / "out"),
+                  "-n", "realesr-animevideov3-x2", "-s", "2", "-m", "{modelos}"]) != 0:
+            return "upscale dos frames falhou"
+        if len(list((td / "out").glob("*.png"))) != n:
+            return "upscale não gerou todos os frames"
+        cmd = ["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-stats",
+               "-framerate", fps, "-i", str(td / "out" / "%08d.png")]
+        if tem_audio:
+            cmd += ["-i", "{in}", "-map", "0:v", "-map", "1:a", "-c:a", "copy"]
+        cmd += ["-c:v", "libx264", "-crf", "18", "-preset", "medium",
+                "-pix_fmt", "yuv420p", "-shortest", "-y", "{out}"]
+        if rodar(cmd, **{"in": str(caminho), "out": str(destino)}) != 0:
+            return "remontagem falhou"
+    finally:
+        _shutil.rmtree(td, ignore_errors=True)
+    return None
+
+
 HANDLERS = {
     "restaurar": h_restaurar,
-    "video_discord": h_video_discord,
+    "video_alvo": h_video_alvo,
+    "video_upscale": h_video_upscale,
     "normalizar": h_normalizar,
     "compactar": h_compactar,
 }

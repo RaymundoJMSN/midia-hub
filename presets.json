@@ -72,7 +72,15 @@
     "categoria": "video",
     "exts": [".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".ts", ".wmv", ".flv"],
     "saida_ext": ".mp4",
-    "handler": "video_discord"
+    "handler": "video_alvo",
+    "alvo_mb": 25
+  },
+  "video-upscale-2x": {
+    "rotulo": "Upscale 2x vídeo (IA, lento)",
+    "categoria": "ia",
+    "exts": [".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v"],
+    "saida_ext": ".mp4",
+    "handler": "video_upscale"
   },
   "video-av1-gpu": {
     "rotulo": "Vídeo AV1 rápido (GPU)",

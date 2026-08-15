@@ -74,9 +74,12 @@ Janela pywebview (mesmo stack do Scene Finder) sobre o MESMO motor:
 
 ## Fase 3 — pesados
 
-- Upscale de vídeo (frames → realesrgan → remontar com áudio original).
-- Tamanho-alvo custom (2-pass, qualquer MB).
-- Restaurar rosto (GFPGAN/CodeFormer via onnxruntime-directml) — avaliar custo/benefício na hora.
+- Upscale de vídeo (frames → realesr-animevideov3-x2 → remontar com áudio original;
+  temp no X:, pensado p/ vídeo curto). ✔
+- Tamanho-alvo custom (`video_alvo`: discord = 25 MB fixo no menu, MB livre na GUI). ✔
+- Restaurar rosto (GFPGAN): **decidido ficar de fora** — exigiria onnxruntime-directml +
+  modelo ~350 MB de conversão não-oficial pra um caso de uso raro do Ray. Retomar se
+  surgir necessidade real.
 
 ## Fora de escopo
 

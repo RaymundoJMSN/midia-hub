@@ -82,10 +82,11 @@
     color: var(--acc); border: 1px solid var(--acc-dim); border-radius: 4px; padding: 2px 8px;
   }
   select, input[type=range] { accent-color: var(--acc); }
-  select {
+  select, input[type=number] {
     background: var(--bg); color: var(--tx); border: 1px solid var(--line);
     border-radius: 6px; padding: 5px 8px; font: 13px "Segoe UI", sans-serif;
   }
+  input[type=number] { width: 64px; font-family: var(--mono); }
   .ajuste { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); }
   .ajuste output { font: 12px var(--mono); color: var(--tx); min-width: 3ch; }
   .grupo ul { list-style: none; max-height: 130px; overflow-y: auto; }
@@ -301,6 +302,9 @@ function desenharGrupos() {
             <input type="range" min="${aj.min}" max="${aj.max}" value="${e.qualidade ?? aj.padrao}"
                    data-tipo="${tipo}" class="sl-q">
             <output>${e.qualidade ?? aj.padrao}</output></label>` : ""}
+        ${PRESETS[e.preset]?.handler === "video_alvo" ? `<label class="ajuste">alvo MB
+            <input type="number" min="1" max="2000" value="${e.alvo ?? PRESETS[e.preset].alvo_mb ?? 25}"
+                   data-tipo="${tipo}" class="in-alvo"></label>` : ""}
         ${usaModelo(e.preset) ? `<label class="ajuste">modelo
             <select data-tipo="${tipo}" class="sel-modelo">
               ${MODELOS.instalados.map(m => `<option ${m===(e.modelo||"realesrgan-x4plus")?"selected":""}>${m}</option>`).join("")}
@@ -329,6 +333,8 @@ $("#grupos").addEventListener("input", ev => {
   if (ev.target.classList.contains("sl-q")) {
     escolhas[ev.target.dataset.tipo].qualidade = +ev.target.value;
     ev.target.nextElementSibling.value = ev.target.value;
+  } else if (ev.target.classList.contains("in-alvo")) {
+    escolhas[ev.target.dataset.tipo].alvo = +ev.target.value || null;
   }
 });
 $("#grupos").addEventListener("click", ev => {
@@ -343,6 +349,7 @@ $("#grupos").addEventListener("click", ev => {
     const ajustes = {};
     if (e.qualidade != null) ajustes.qualidade = e.qualidade;
     if (e.modelo && usaModelo(e.preset)) ajustes.modelo = e.modelo;
+    if (e.alvo && PRESETS[e.preset]?.handler === "video_alvo") ajustes.alvo_mb = e.alvo;
     pywebview.api.adicionar(itens.map(i => i.caminho), e.preset, ajustes);
     staging = staging.filter(s => s.tipo !== t);
     desenharGrupos();
