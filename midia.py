@@ -57,10 +57,45 @@ def saida_para(caminho, preset_nome, preset):
     return destino
 
 
-def rodar(cmd, **kw):
-    """subprocess.run com as chaves {ferramenta}/{in}/{out} expandidas."""
+PROC_ATUAL = None  # processo em execução, p/ cancelar pela GUI
+
+
+def rodar(cmd, progresso=None, dur=0, **kw):
+    """subprocess.run com as chaves {ferramenta}/{in}/{out} expandidas.
+
+    progresso: callback(0..1) — só funciona em comandos ffmpeg com dur conhecida.
+    """
+    global PROC_ATUAL
     expandido = [c.format(**FERRAMENTAS, modelos=MODELOS, **kw) for c in cmd]
-    return subprocess.run(expandido).returncode
+    if progresso and dur and expandido[0] == FERRAMENTAS["ffmpeg"]:
+        expandido[1:1] = ["-progress", "pipe:1", "-nostats"]
+        p = subprocess.Popen(expandido, stdout=subprocess.PIPE,
+                             text=True, encoding="utf-8", errors="replace")
+        PROC_ATUAL = p
+        for linha in p.stdout:
+            if linha.startswith("out_time_ms="):  # na verdade é microssegundo
+                try:
+                    progresso(min(0.99, int(linha.split("=")[1]) / 1e6 / dur))
+                except ValueError:
+                    pass
+        cod = p.wait()
+    else:
+        p = subprocess.Popen(expandido)
+        PROC_ATUAL = p
+        cod = p.wait()
+    PROC_ATUAL = None
+    return cod
+
+
+def cancelar_atual():
+    p = PROC_ATUAL
+    if p and p.poll() is None:
+        p.kill()
+
+
+def duracao_de(caminho):
+    info = ffprobe_json(caminho, "-show_entries", "format=duration")
+    return float(info.get("format", {}).get("duration", 0) or 0)
 
 
 def ffprobe_json(caminho, *args):
@@ -72,16 +107,17 @@ def ffprobe_json(caminho, *args):
 
 # ---------------------------------------------------------------- handlers
 
-def h_restaurar(caminho, destino, preset):
+def h_restaurar(caminho, destino, preset, ajustes):
     """Upscale 4x e volta ao tamanho original — limpa artefatos de compressão."""
     info = ffprobe_json(caminho, "-select_streams", "v:0", "-show_entries", "stream=width,height")
     streams = info.get("streams") or []
     if not streams:
         return "não consegui ler as dimensões"
     w, h = streams[0]["width"], streams[0]["height"]
+    modelo = ajustes.get("modelo") or "realesrgan-x4plus"
     tmp = destino.with_name(destino.stem + "_tmp4x.png")
     try:
-        if rodar(["{realesrgan}", "-i", "{in}", "-o", "{out}", "-n", "realesrgan-x4plus",
+        if rodar(["{realesrgan}", "-i", "{in}", "-o", "{out}", "-n", modelo,
                   "-m", "{modelos}"], **{"in": str(caminho), "out": str(tmp)}) != 0:
             return "upscale falhou"
         if rodar(["{ffmpeg}", "-hide_banner", "-loglevel", "warning", "-i", "{in}",
@@ -93,7 +129,7 @@ def h_restaurar(caminho, destino, preset):
     return None
 
 
-def h_video_discord(caminho, destino, preset):
+def h_video_discord(caminho, destino, preset, ajustes):
     """2-pass libx264 com alvo de 25 MB."""
     if caminho.stat().st_size <= 25 * 1024 * 1024:
         return "já cabe em 25 MB, nada a fazer"
@@ -133,7 +169,7 @@ CODEC_POR_EXT = {
 }
 
 
-def h_normalizar(caminho, destino, preset):
+def h_normalizar(caminho, destino, preset, ajustes):
     """loudnorm 2-pass (EBU R128, I=-16)."""
     alvo = "I=-16:TP=-1.5:LRA=11"
     r = subprocess.run(
@@ -155,7 +191,7 @@ def h_normalizar(caminho, destino, preset):
     return None
 
 
-def h_compactar(caminho, destino, preset):
+def h_compactar(caminho, destino, preset, ajustes):
     """7z/zip de arquivo ou pasta."""
     formato = "-tzip" if destino.suffix == ".zip" else "-t7z"
     nivel = "-mx9" if destino.suffix == ".7z" else "-mx5"
@@ -180,8 +216,12 @@ def tamanho_de(caminho):
     return caminho.stat().st_size
 
 
-def processar(preset_nome, preset, caminho):
-    """Devolve (destino|None, erro|None, antes, depois)."""
+def processar(preset_nome, preset, caminho, ajustes=None, progresso=None):
+    """Devolve (destino|None, erro|None, antes, depois).
+
+    ajustes: {"qualidade": int, "modelo": str} — sobrescreve o valor do preset (GUI).
+    progresso: callback(0..1) p/ vídeo (GUI).
+    """
     caminho = Path(caminho)
     if not caminho.exists():
         return None, "não existe", 0, 0
@@ -195,9 +235,21 @@ def processar(preset_nome, preset, caminho):
     antes = tamanho_de(caminho)
     destino = saida_para(caminho, preset_nome, preset)
     if "handler" in preset:
-        erro = HANDLERS[preset["handler"]](caminho, destino, preset)
+        erro = HANDLERS[preset["handler"]](caminho, destino, preset, ajustes or {})
     else:
-        cod = rodar(preset["cmd"], **{"in": str(caminho), "out": str(destino)})
+        cmd = list(preset["cmd"])
+        if ajustes:
+            if ajustes.get("modelo") and "-n" in cmd:
+                cmd[cmd.index("-n") + 1] = ajustes["modelo"]
+            q = ajustes.get("qualidade")
+            if q is not None:
+                for flag in ("-quality", "-crf", "-qvbr_quality_level"):
+                    if flag in cmd:
+                        cmd[cmd.index(flag) + 1] = str(q)
+                        break
+        dur = duracao_de(caminho) if progresso and preset["categoria"] == "video" else 0
+        cod = rodar(cmd, progresso=progresso, dur=dur,
+                    **{"in": str(caminho), "out": str(destino)})
         erro = None if cod == 0 else f"ferramenta saiu com código {cod}"
     if erro is None and not destino.exists():
         erro = "ferramenta não gerou a saída"
@@ -261,18 +313,18 @@ def _pid_vivo(pid):
         k32.CloseHandle(h)
 
 
-def pegar_lock():
+def pegar_lock(lock=LOCK):
     for _ in range(2):
         try:
-            fd = os.open(LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             os.write(fd, str(os.getpid()).encode())
             os.close(fd)
             return True
         except FileExistsError:
             try:
-                if _pid_vivo(int(LOCK.read_text() or 0)):
+                if _pid_vivo(int(lock.read_text() or 0)):
                     return False
-                LOCK.unlink(missing_ok=True)  # lock órfão de processo morto
+                lock.unlink(missing_ok=True)  # lock órfão de processo morto
             except (OSError, ValueError):
                 return False
     return False

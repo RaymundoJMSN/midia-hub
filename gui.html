@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Mídia Hub</title>
+<style>
+  :root {
+    --bg: #131417; --panel: #1b1d22; --panel2: #21242b; --line: #2b2e36;
+    --tx: #e8e6e0; --dim: #8d919c; --acc: #ffb454; --acc-dim: #8a6430;
+    --ok: #7ad48a; --err: #ff7a7a;
+    --mono: "Cascadia Mono", "Consolas", monospace;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background:
+      repeating-linear-gradient(0deg, transparent 0 2px, rgba(255,255,255,.006) 2px 4px),
+      var(--bg);
+    color: var(--tx);
+    font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; overflow: hidden;
+    user-select: none;
+  }
+
+  /* ---------- topo ---------- */
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #17181c, #141518);
+  }
+  header h1 {
+    font: 600 15px var(--mono); letter-spacing: .35em; color: var(--acc);
+  }
+  header h1 span { color: var(--dim); }
+  header .luz {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #3a3d45; transition: background .3s, box-shadow .3s;
+  }
+  header .luz.on { background: var(--acc); box-shadow: 0 0 8px var(--acc); }
+  header .vao { flex: 1; }
+  button {
+    font: 500 13px "Segoe UI", sans-serif; color: var(--tx);
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 12px; cursor: pointer;
+  }
+  button:hover { border-color: var(--acc-dim); color: var(--acc); }
+  button.primario {
+    background: var(--acc); color: #1a1408; border-color: var(--acc); font-weight: 600;
+  }
+  button.primario:hover { filter: brightness(1.1); color: #1a1408; }
+  button:disabled { opacity: .4; cursor: default; }
+
+  main { flex: 1; overflow-y: auto; padding: 16px; }
+
+  /* ---------- zona de soltar ---------- */
+  #drop {
+    border: 1px dashed #3a3e48; border-radius: 10px; text-align: center;
+    padding: 34px 16px; color: var(--dim); cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #drop.mini { padding: 12px; }
+  #drop .grande { font-size: 15px; color: var(--tx); }
+  #drop kbd {
+    font: 12px var(--mono); border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 6px; background: var(--panel);
+  }
+  body.arrastando #drop {
+    border-color: var(--acc); background: rgba(255,180,84,.05); color: var(--acc);
+  }
+
+  /* ---------- grupos (staging) ---------- */
+  .grupo {
+    margin-top: 14px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; overflow: hidden;
+  }
+  .grupo-cab {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 12px; background: var(--panel2); border-bottom: 1px solid var(--line);
+  }
+  .grupo-cab .tipo {
+    font: 600 11px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+    color: var(--acc); border: 1px solid var(--acc-dim); border-radius: 4px; padding: 2px 8px;
+  }
+  select, input[type=range] { accent-color: var(--acc); }
+  select {
+    background: var(--bg); color: var(--tx); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 8px; font: 13px "Segoe UI", sans-serif;
+  }
+  .ajuste { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); }
+  .ajuste output { font: 12px var(--mono); color: var(--tx); min-width: 3ch; }
+  .grupo ul { list-style: none; max-height: 130px; overflow-y: auto; }
+  .grupo li {
+    display: flex; gap: 8px; align-items: center;
+    padding: 5px 12px; border-bottom: 1px solid #20232a; font-size: 13px;
+  }
+  .grupo li:last-child { border-bottom: 0; }
+  .grupo li .cam { color: var(--dim); font-size: 11px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .grupo li .tira { color: var(--dim); cursor: pointer; padding: 0 4px; }
+  .grupo li .tira:hover { color: var(--err); }
+
+  /* ---------- fila ---------- */
+  #fila-cab {
+    display: flex; align-items: baseline; gap: 10px; margin: 22px 0 8px;
+  }
+  #fila-cab h2 {
+    font: 600 11px var(--mono); letter-spacing: .18em; color: var(--dim);
+    text-transform: uppercase;
+  }
+  #fila-cab .risco { flex: 1; border-top: 1px solid var(--line); }
+  .job {
+    display: grid; grid-template-columns: 18px 1fr auto; gap: 4px 10px;
+    align-items: center; padding: 8px 12px; margin-bottom: 6px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  }
+  .job .st { font-size: 13px; text-align: center; }
+  .job .nome { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .job .nome small { color: var(--dim); font: 11px var(--mono); margin-left: 8px; }
+  .job .dados { font: 12px var(--mono); color: var(--dim); white-space: nowrap;
+    display: flex; gap: 10px; align-items: center; }
+  .job .delta.ok { color: var(--ok); }
+  .job .delta.ruim { color: var(--err); }
+  .job .barra {
+    grid-column: 2 / 4; height: 3px; border-radius: 2px; background: #262932;
+    overflow: hidden;
+  }
+  .job .barra i {
+    display: block; height: 100%; background: var(--acc); border-radius: 2px;
+    transition: width .4s; box-shadow: 0 0 6px var(--acc);
+  }
+  .job .erro-msg { grid-column: 2 / 4; font-size: 12px; color: var(--err); }
+  .job button { padding: 3px 9px; font-size: 12px; }
+  .girando {
+    display: inline-block; width: 11px; height: 11px; border-radius: 50%;
+    border: 2px solid var(--acc-dim); border-top-color: var(--acc);
+    animation: gira .8s linear infinite;
+  }
+  @keyframes gira { to { transform: rotate(360deg); } }
+
+  /* ---------- modais ---------- */
+  dialog {
+    background: var(--panel); color: var(--tx); border: 1px solid var(--line);
+    border-radius: 12px; padding: 0; max-width: 90vw; margin: auto;
+  }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog .mod-cab {
+    display: flex; align-items: center; padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    font: 600 12px var(--mono); letter-spacing: .15em; text-transform: uppercase;
+    color: var(--acc);
+  }
+  dialog .mod-cab button { margin-left: auto; }
+  dialog .mod-corpo { padding: 16px; }
+
+  /* comparar */
+  #comp-area { position: relative; max-width: 84vw; overflow: hidden;
+    border-radius: 8px; background: #000; }
+  #comp-area img { display: block; max-width: 84vw; max-height: 66vh; }
+  #comp-depois { position: absolute; inset: 0; }
+  #comp-depois img { position: absolute; left: 0; top: 0; height: 100%; max-height: 66vh; }
+  #comp-linha { position: absolute; top: 0; bottom: 0; width: 1px;
+    background: var(--acc); box-shadow: 0 0 8px var(--acc); pointer-events: none; }
+  #comp-range { width: 100%; margin-top: 10px; }
+  .comp-tag {
+    position: absolute; top: 8px; font: 11px var(--mono); letter-spacing: .1em;
+    background: rgba(0,0,0,.65); color: var(--tx); padding: 2px 8px; border-radius: 4px;
+  }
+
+  /* modelos */
+  .modelo {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid #20232a;
+  }
+  .modelo:last-child { border-bottom: 0; }
+  .modelo b { font: 600 13px var(--mono); }
+  .modelo small { display: block; color: var(--dim); }
+  .modelo .direita { margin-left: auto; font: 12px var(--mono); color: var(--dim); }
+  .modelo .direita .instalado { color: var(--ok); }
+
+  #vazio-fila { color: var(--dim); font-size: 13px; padding: 8px 2px; }
+  ::-webkit-scrollbar { width: 9px; }
+  ::-webkit-scrollbar-thumb { background: #2c2f37; border-radius: 5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>MÍDIA<span>·</span>HUB</h1>
+  <div class="luz" id="luz"></div>
+  <div class="vao"></div>
+  <button id="bt-modelos">Modelos IA</button>
+</header>
+
+<main>
+  <div id="drop">
+    <div class="grande">Arraste arquivos ou pastas aqui</div>
+    <div style="margin-top:6px">ou <kbd>clique</kbd> para escolher — imagem · vídeo · áudio · PDF</div>
+  </div>
+
+  <div id="grupos"></div>
+
+  <div id="fila-cab" hidden>
+    <h2>Fila</h2><div class="risco"></div>
+    <button id="bt-limpar">limpar prontos</button>
+  </div>
+  <div id="fila"></div>
+</main>
+
+<dialog id="dlg-comparar">
+  <div class="mod-cab">Antes / Depois <button onclick="dlgComparar.close()">fechar</button></div>
+  <div class="mod-corpo">
+    <div id="comp-area">
+      <img id="comp-antes" alt="antes">
+      <div id="comp-depois"><img id="comp-depois-img" alt="depois"></div>
+      <div id="comp-linha"></div>
+      <span class="comp-tag" style="left:8px">ANTES</span>
+      <span class="comp-tag" style="right:8px">DEPOIS</span>
+    </div>
+    <input id="comp-range" type="range" min="0" max="100" value="50">
+  </div>
+</dialog>
+
+<dialog id="dlg-modelos">
+  <div class="mod-cab">Modelos de IA <button onclick="dlgModelos.close()">fechar</button></div>
+  <div class="mod-corpo" id="lista-modelos" style="min-width:520px"></div>
+</dialog>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const dlgComparar = $("#dlg-comparar"), dlgModelos = $("#dlg-modelos");
+let PRESETS = {}, MODELOS = { instalados: [], curados: {}, downloads: {} };
+let staging = [];           // {caminho, nome, ext, tipo}
+let escolhas = {};          // tipo -> {preset, qualidade, modelo}
+
+const TIPOS = [["imagem","Imagens"],["video","Vídeos"],["audio","Áudio"],["pdf","PDF"],["outro","Outros"]];
+
+function tipoDe(ext) {
+  for (const [nome, p] of Object.entries(PRESETS)) {
+    if (p.categoria !== "compactar" && p.categoria !== "ia" && p.exts.includes(ext))
+      return p.categoria === "imagem" ? "imagem" : p.categoria;
+  }
+  return "outro";
+}
+function fmt(n) {
+  if (n >= 1073741824) return (n/1073741824).toFixed(1)+" GB";
+  if (n >= 1048576) return (n/1048576).toFixed(1)+" MB";
+  if (n >= 1024) return (n/1024).toFixed(1)+" KB";
+  return n+" B";
+}
+const ehImg = c => /\.(jpe?g|png|webp|bmp|tiff?|avif)$/i.test(c);
+
+/* ---------------- staging ---------------- */
+function addArquivos(caminhos) {
+  for (const c of caminhos) {
+    if (!c || staging.some(s => s.caminho === c)) continue;
+    const nome = c.split(/[\\/]/).pop();
+    const ext = (nome.includes(".") ? "." + nome.split(".").pop() : "").toLowerCase();
+    staging.push({ caminho: c, nome, ext, tipo: tipoDe(ext) });
+  }
+  desenharGrupos();
+}
+
+function presetsPara(tipo, exts) {
+  return Object.entries(PRESETS).filter(([, p]) =>
+    p.exts.includes("*") || exts.some(e => p.exts.includes(e)));
+}
+
+function alvoAjuste(preset) {
+  const cmd = PRESETS[preset]?.cmd || [];
+  for (const [flag, min, max, rot] of [["-quality",50,100,"qualidade"],
+      ["-crf",16,34,"crf"],["-qvbr_quality_level",20,40,"qvbr"]]) {
+    const i = cmd.indexOf(flag);
+    if (i >= 0) return { flag, min, max, rot, padrao: +cmd[i+1] };
+  }
+  return null;
+}
+const usaModelo = preset =>
+  PRESETS[preset] && (PRESETS[preset].cmd || []).includes("-n") || preset === "restaurar";
+
+function desenharGrupos() {
+  const div = $("#grupos");
+  div.innerHTML = "";
+  $("#drop").classList.toggle("mini", staging.length > 0);
+  for (const [tipo, rotulo] of TIPOS) {
+    const itens = staging.filter(s => s.tipo === tipo);
+    if (!itens.length) continue;
+    const exts = [...new Set(itens.map(i => i.ext))];
+    const opcoes = presetsPara(tipo, exts);
+    if (!escolhas[tipo]) escolhas[tipo] = { preset: opcoes[0][0], qualidade: null, modelo: null };
+    const e = escolhas[tipo];
+    const aj = alvoAjuste(e.preset);
+    const g = document.createElement("div");
+    g.className = "grupo";
+    g.innerHTML = `
+      <div class="grupo-cab">
+        <span class="tipo">${rotulo} · ${itens.length}</span>
+        <select data-tipo="${tipo}" class="sel-preset">
+          ${opcoes.map(([n, p]) => `<option value="${n}" ${n===e.preset?"selected":""}>${p.rotulo}</option>`).join("")}
+        </select>
+        ${aj ? `<label class="ajuste">${aj.rot}
+            <input type="range" min="${aj.min}" max="${aj.max}" value="${e.qualidade ?? aj.padrao}"
+                   data-tipo="${tipo}" class="sl-q">
+            <output>${e.qualidade ?? aj.padrao}</output></label>` : ""}
+        ${usaModelo(e.preset) ? `<label class="ajuste">modelo
+            <select data-tipo="${tipo}" class="sel-modelo">
+              ${MODELOS.instalados.map(m => `<option ${m===(e.modelo||"realesrgan-x4plus")?"selected":""}>${m}</option>`).join("")}
+            </select></label>` : ""}
+        <span style="flex:1"></span>
+        <button class="primario bt-processar" data-tipo="${tipo}">Processar ${itens.length}</button>
+      </div>
+      <ul>${itens.map(i => `<li>${i.nome}<span class="cam">${i.caminho}</span>
+        <span class="tira" data-cam="${encodeURIComponent(i.caminho)}">✕</span></li>`).join("")}</ul>`;
+    div.appendChild(g);
+  }
+}
+
+$("#grupos").addEventListener("change", ev => {
+  const t = ev.target.dataset.tipo;
+  if (!t) return;
+  if (ev.target.classList.contains("sel-preset")) {
+    escolhas[t].preset = ev.target.value;
+    escolhas[t].qualidade = null;
+    desenharGrupos();
+  } else if (ev.target.classList.contains("sel-modelo")) {
+    escolhas[t].modelo = ev.target.value;
+  }
+});
+$("#grupos").addEventListener("input", ev => {
+  if (ev.target.classList.contains("sl-q")) {
+    escolhas[ev.target.dataset.tipo].qualidade = +ev.target.value;
+    ev.target.nextElementSibling.value = ev.target.value;
+  }
+});
+$("#grupos").addEventListener("click", ev => {
+  if (ev.target.classList.contains("tira")) {
+    const cam = decodeURIComponent(ev.target.dataset.cam);
+    staging = staging.filter(s => s.caminho !== cam);
+    desenharGrupos();
+  } else if (ev.target.classList.contains("bt-processar")) {
+    const t = ev.target.dataset.tipo;
+    const itens = staging.filter(s => s.tipo === t);
+    const e = escolhas[t];
+    const ajustes = {};
+    if (e.qualidade != null) ajustes.qualidade = e.qualidade;
+    if (e.modelo && usaModelo(e.preset)) ajustes.modelo = e.modelo;
+    pywebview.api.adicionar(itens.map(i => i.caminho), e.preset, ajustes);
+    staging = staging.filter(s => s.tipo !== t);
+    desenharGrupos();
+  }
+});
+
+/* ---------------- drop / escolher ---------------- */
+["dragenter","dragover"].forEach(ev => document.addEventListener(ev, e => {
+  e.preventDefault(); document.body.classList.add("arrastando");
+}));
+["dragleave","drop"].forEach(ev => document.addEventListener(ev, e => {
+  e.preventDefault();
+  if (ev === "dragleave" && e.relatedTarget) return;
+  document.body.classList.remove("arrastando");
+}));
+document.addEventListener("drop", e => {
+  const caminhos = [...e.dataTransfer.files]
+    .map(f => f.pywebviewFullPath || null).filter(Boolean);
+  if (caminhos.length) addArquivos(caminhos);
+});
+$("#drop").addEventListener("click", async () => {
+  addArquivos(await pywebview.api.escolher_arquivos() || []);
+});
+
+/* ---------------- fila ---------------- */
+const ICONES = { fila: "·", ok: "✓", erro: "✕", cancelado: "–" };
+function desenharFila(fila) {
+  $("#fila-cab").hidden = !fila.length;
+  $("#luz").classList.toggle("on", fila.some(j => j.status === "rodando"));
+  const div = $("#fila");
+  div.innerHTML = "";
+  for (const j of [...fila].reverse()) {
+    const el = document.createElement("div");
+    el.className = "job";
+    const econ = j.antes && j.depois ? Math.round((1 - j.depois / j.antes) * 100) : 0;
+    let dados = "", extra = "";
+    if (j.status === "ok") {
+      dados = `${fmt(j.antes)} → ${fmt(j.depois)}
+        <span class="delta ${econ >= 0 ? "ok" : "ruim"}">${econ >= 0 ? "−" + econ : "+" + (-econ)}%</span>
+        <button data-acao="pasta" data-cam="${encodeURIComponent(j.saida)}">pasta</button>
+        ${ehImg(j.caminho) && ehImg(j.saida) ?
+          `<button data-acao="comparar" data-a="${encodeURIComponent(j.caminho)}"
+                   data-d="${encodeURIComponent(j.saida)}">comparar</button>` : ""}`;
+    } else if (j.status === "rodando") {
+      dados = j.pct ? j.pct + "%" : "";
+      extra = `<div class="barra"><i style="width:${j.pct || 2}%"></i></div>`;
+    } else if (j.status === "fila") {
+      dados = `<button data-acao="cancelar" data-id="${j.id}">tirar</button>`;
+    } else if (j.status === "erro") {
+      extra = `<div class="erro-msg">${j.erro}</div>`;
+    }
+    el.innerHTML = `
+      <span class="st">${j.status === "rodando" ? '<span class="girando"></span>' : ICONES[j.status]}</span>
+      <span class="nome">${j.nome}<small>${j.preset}${j.t ? " · " + j.t + "s" : ""}</small></span>
+      <span class="dados">${dados}</span>${extra}`;
+    div.appendChild(el);
+  }
+}
+$("#fila").addEventListener("click", async ev => {
+  const b = ev.target.closest("button");
+  if (!b) return;
+  if (b.dataset.acao === "pasta") pywebview.api.abrir_pasta(decodeURIComponent(b.dataset.cam));
+  if (b.dataset.acao === "cancelar") pywebview.api.cancelar_job(b.dataset.id);
+  if (b.dataset.acao === "comparar") abrirComparar(
+    decodeURIComponent(b.dataset.a), decodeURIComponent(b.dataset.d));
+});
+$("#bt-limpar").addEventListener("click", () => pywebview.api.limpar_prontos());
+
+/* ---------------- comparar ---------------- */
+async function abrirComparar(antes, depois) {
+  dlgComparar.showModal();
+  $("#comp-antes").src = $("#comp-depois-img").src = "";
+  const [a, d] = await Promise.all([pywebview.api.preview(antes), pywebview.api.preview(depois)]);
+  if (a) $("#comp-antes").src = a;
+  if (d) $("#comp-depois-img").src = d;
+  $("#comp-range").value = 50;
+  cortar(50);
+}
+function cortar(v) {
+  $("#comp-depois").style.clipPath = `inset(0 0 0 ${v}%)`;
+  $("#comp-linha").style.left = v + "%";
+}
+$("#comp-range").addEventListener("input", e => cortar(e.target.value));
+
+/* ---------------- modelos ---------------- */
+function desenharModelos() {
+  const div = $("#lista-modelos");
+  div.innerHTML = "";
+  for (const [nome, desc] of Object.entries(MODELOS.curados)) {
+    const inst = MODELOS.instalados.includes(nome);
+    const dl = MODELOS.downloads[nome];
+    let direita;
+    if (inst || dl === "ok") direita = `<span class="instalado">✓ instalado</span>`;
+    else if (typeof dl === "number") direita = dl + "%";
+    else if (typeof dl === "string") direita = `<span style="color:var(--err)">${dl}</span>`;
+    else direita = `<button data-modelo="${nome}">baixar</button>`;
+    div.insertAdjacentHTML("beforeend", `<div class="modelo">
+      <div><b>${nome}</b><small>${desc}</small></div>
+      <div class="direita">${direita}</div></div>`);
+  }
+}
+$("#lista-modelos").addEventListener("click", ev => {
+  const b = ev.target.closest("button");
+  if (b) { pywebview.api.baixar_modelo(b.dataset.modelo); desenharModelos(); }
+});
+$("#bt-modelos").addEventListener("click", () => { desenharModelos(); dlgModelos.showModal(); });
+
+/* ---------------- laço ---------------- */
+async function laco() {
+  try {
+    const est = await pywebview.api.estado();
+    desenharFila(est.fila);
+    const pend = await pywebview.api.pendentes_menu();
+    if (pend.length) addArquivos(pend);
+    if (dlgModelos.open) {
+      MODELOS = await pywebview.api.modelos();
+      desenharModelos();
+    }
+  } catch (e) { /* api ainda não pronta */ }
+}
+window.addEventListener("pywebviewready", async () => {
+  const d = await pywebview.api.dados_iniciais();
+  PRESETS = d.presets;
+  MODELOS = d.modelos;
+  if (d.iniciais.length) addArquivos(d.iniciais);
+  setInterval(laco, 450);
+});
+</script>
+</body>
+</html>
