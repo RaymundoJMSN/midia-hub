@@ -28,21 +28,24 @@ Tudo em [presets.json](presets.json) — editável na mão; reinstalar o menu at
 
 Saída sempre ao lado do original com sufixo `_<preset>`; nunca sobrescreve.
 
-## Instalar
+## Instalar (PC novo)
 
-Pré-requisitos: Python 3.x, ffmpeg no PATH (`winget install ffmpeg`), 7-Zip,
-`pip install pywebview`, e binários em `X:\midia-hub\bin\`:
-- `gs\` — Ghostscript portátil (instalador oficial extraído com 7-Zip)
-- `realesrgan\` — realesrgan-ncnn-vulkan + `models\` (.param/.bin)
-
-Depois:
+Pré-requisitos manuais: Python 3.x, 7-Zip e ffmpeg no PATH (`winget install ffmpeg`).
+O resto o instalador resolve:
 
 ```bash
-pwsh -File instalar.ps1
+git clone https://github.com/RaymundoJMSN/midia-hub && cd midia-hub && pwsh -File instalar.ps1
 ```
 
-Registra o menu de contexto (HKCU, sem UAC) e cria o atalho no Menu Iniciar.
-`-Desinstalar` remove tudo.
+O `instalar.ps1` é idempotente: instala pywebview via pip, baixa Ghostscript portátil e
+Real-ESRGAN pro `X:\midia-hub\bin\` se faltarem, registra o menu de contexto (HKCU, sem
+UAC) e cria o atalho no Menu Iniciar. `-Desinstalar` remove menu e atalho.
+
+## Atualização automática
+
+Ao abrir a janela, o app faz `git fetch` em background; se o GitHub tiver versão mais
+nova, faz `pull --ff-only`, reinstala o menu sozinho e avisa na interface ("feche e abra
+pra aplicar"). Sem rede ou sem novidade, não faz nada.
 
 ## Decisões que importam
 
