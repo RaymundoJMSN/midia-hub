@@ -42,10 +42,34 @@ class Api:
         self._pendentes = []          # vindos do menu de contexto com a janela aberta
         self.fila = []                # jobs: dict simples, serializável
         self.downloads = {}           # nome -> pct | "ok" | "erro: ..."
+        self.atualizado = False       # git pull aplicado nesta sessão
         self._trava = threading.Lock()
         self._cancelar = False
         threading.Thread(target=self._worker, daemon=True).start()
         threading.Thread(target=self._vigiar_gui_jobs, daemon=True).start()
+        threading.Thread(target=self._atualizar, daemon=True).start()
+
+    def _atualizar(self):
+        """Auto-update: git pull no repo; se veio coisa nova, reinstala o menu."""
+        aqui = str(Path(__file__).resolve().parent)
+
+        def git(*args):
+            return subprocess.run(["git", "-C", aqui, *args], capture_output=True,
+                                  text=True, timeout=60, creationflags=0x08000000)
+        try:
+            if git("fetch", "--quiet").returncode != 0:
+                return  # sem rede/sem git — segue a vida
+            local = git("rev-parse", "HEAD").stdout.strip()
+            remoto = git("rev-parse", "origin/main").stdout.strip()
+            if local == remoto or not remoto:
+                return
+            if git("pull", "--ff-only", "--quiet").returncode == 0:
+                subprocess.run(["pwsh", "-NoProfile", "-File",
+                                str(Path(aqui) / "instalar.ps1")],
+                               capture_output=True, timeout=120, creationflags=0x08000000)
+                self.atualizado = True
+        except Exception:
+            pass  # atualização nunca pode derrubar o app
 
     # ------------------------------------------------ dados p/ a interface
 
@@ -84,7 +108,8 @@ class Api:
         return ids
 
     def estado(self):
-        return {"fila": self.fila, "downloads": self.downloads}
+        return {"fila": self.fila, "downloads": self.downloads,
+                "atualizado": self.atualizado}
 
     def cancelar_job(self, id):
         with self._trava:

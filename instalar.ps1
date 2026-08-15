@@ -12,6 +12,37 @@ $app = Join-Path $aqui 'app.py'
 # reg.exe em vez do provider HKCU: por causa da chave literal "*" (PS trata * como wildcard)
 $classes = 'HKCU\Software\Classes'
 
+# ---------- bootstrap: dependências e binários (idempotente, só baixa o que falta) ----------
+$binRaiz = 'X:\midia-hub\bin'
+$7zExe = 'C:\Program Files\7-Zip\7z.exe'
+New-Item -ItemType Directory -Force 'X:\midia-hub\tmp' | Out-Null   # temp do upscale de vídeo
+if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+    Write-Warning 'ffmpeg fora do PATH — instalar com: winget install ffmpeg (e reabrir o terminal)'
+}
+if (-not (Test-Path $7zExe)) {
+    Write-Warning '7-Zip não achado — instalar com: winget install 7zip.7zip'
+}
+python -c 'import webview' 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host 'instalando pywebview...'
+    pip install --user pywebview | Out-Null
+}
+if (-not (Test-Path (Join-Path $binRaiz 'gs\bin\gswin64c.exe'))) {
+    Write-Host 'baixando Ghostscript portátil...'
+    $tmp = Join-Path $env:TEMP 'gs-setup.exe'
+    curl.exe -sL -o $tmp 'https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10071/gs10071w64.exe'
+    & $7zExe x $tmp "-o$(Join-Path $binRaiz 'gs')" -y | Out-Null
+    Remove-Item $tmp, (Join-Path $binRaiz 'gs\$PLUGINSDIR'), (Join-Path $binRaiz 'gs\vcredist_x64.exe'), (Join-Path $binRaiz 'gs\uninstgs.exe.nsis') -Recurse -Force -ErrorAction SilentlyContinue
+}
+if (-not (Test-Path (Join-Path $binRaiz 'realesrgan\realesrgan-ncnn-vulkan.exe'))) {
+    Write-Host 'baixando Real-ESRGAN...'
+    $tmp = Join-Path $env:TEMP 'realesrgan.zip'
+    curl.exe -sL -o $tmp 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip'
+    Expand-Archive $tmp (Join-Path $binRaiz 'realesrgan') -Force
+    Remove-Item $tmp -ErrorAction SilentlyContinue
+}
+
+# ---------- menu de contexto ----------
 $presets = Get-Content (Join-Path $aqui 'presets.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $todasExts = $presets.PSObject.Properties.Value.exts | Where-Object { $_ -ne '*' } | Sort-Object -Unique
 

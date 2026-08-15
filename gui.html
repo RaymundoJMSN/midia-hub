@@ -179,6 +179,13 @@
   .modelo .direita .instalado { color: var(--ok); }
 
   #vazio-fila { color: var(--dim); font-size: 13px; padding: 8px 2px; }
+  #toast-atualizado {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    background: var(--panel2); border: 1px solid var(--acc-dim); color: var(--tx);
+    border-radius: 8px; padding: 9px 16px; font-size: 13px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.5);
+  }
+  #toast-atualizado b { color: var(--acc); }
   ::-webkit-scrollbar { width: 9px; }
   ::-webkit-scrollbar-thumb { background: #2c2f37; border-radius: 5px; }
 </style>
@@ -462,6 +469,10 @@ async function laco() {
   try {
     const est = await pywebview.api.estado();
     desenharFila(est.fila);
+    if (est.atualizado && !$("#toast-atualizado")) {
+      document.body.insertAdjacentHTML("beforeend",
+        `<div id="toast-atualizado"><b>Atualizado.</b> Nova versão baixada — feche e abra pra aplicar.</div>`);
+    }
     const pend = await pywebview.api.pendentes_menu();
     if (pend.length) addArquivos(pend);
     if (dlgModelos.open) {
