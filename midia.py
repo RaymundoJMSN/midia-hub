@@ -193,10 +193,13 @@ def h_normalizar(caminho, destino, preset, ajustes):
 
 
 def h_compactar(caminho, destino, preset, ajustes):
-    """7z/zip de arquivo ou pasta."""
+    """7z/zip de arquivo ou pasta; "partes" divide em volumes (.7z.001, .002...)."""
     formato = "-tzip" if destino.suffix == ".zip" else "-t7z"
     nivel = "-mx9" if destino.suffix == ".7z" else "-mx5"
-    r = subprocess.run([FERRAMENTAS["7z"], "a", formato, nivel, str(destino), str(caminho)],
+    cmd = [FERRAMENTAS["7z"], "a", formato, nivel]
+    if preset.get("partes"):
+        cmd.append(f"-v{preset['partes']}")
+    r = subprocess.run(cmd + [str(destino), str(caminho)],
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
     return None if r.returncode == 0 else "7z falhou: " + (r.stderr or r.stdout).strip()[:200]
 
@@ -298,6 +301,10 @@ def processar(preset_nome, preset, caminho, ajustes=None, progresso=None):
                     **{"in": str(caminho), "out": str(destino)})
         erro = None if cod == 0 else f"ferramenta saiu com código {cod}"
     if erro is None and not destino.exists():
+        # 7z com volumes gera destino.001, .002...
+        volumes = sorted(destino.parent.glob(destino.name + ".0*"))
+        if volumes:
+            return volumes[0], None, antes, sum(v.stat().st_size for v in volumes)
         erro = "ferramenta não gerou a saída"
     if erro:
         destino.unlink(missing_ok=True)

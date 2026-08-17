@@ -274,16 +274,19 @@ function presetsPara(tipo, exts) {
 }
 
 function alvoAjuste(preset) {
+  // inv = flag onde número MENOR significa MAIS qualidade (crf/qvbr);
+  // o slider mostra sempre "direita = mais qualidade"
   const cmd = PRESETS[preset]?.cmd || [];
-  for (const [flag, min, max, rot] of [["-quality",50,100,"qualidade"],
-      ["-crf",16,34,"crf"],["-qvbr_quality_level",20,40,"qvbr"]]) {
+  for (const [flag, min, max, inv] of [["-quality",50,100,false],
+      ["-crf",16,34,true],["-qvbr_quality_level",20,40,true]]) {
     const i = cmd.indexOf(flag);
-    if (i >= 0) return { flag, min, max, rot, padrao: +cmd[i+1] };
+    if (i >= 0) return { flag, min, max, inv, padrao: +cmd[i+1] };
   }
   return null;
 }
 const usaModelo = preset =>
-  PRESETS[preset] && (PRESETS[preset].cmd || []).includes("-n") || preset === "restaurar";
+  PRESETS[preset] && ((PRESETS[preset].cmd || []).includes("-n")
+    || PRESETS[preset].handler === "restaurar");
 
 function desenharGrupos() {
   const div = $("#grupos");
@@ -305,10 +308,11 @@ function desenharGrupos() {
         <select data-tipo="${tipo}" class="sel-preset">
           ${opcoes.map(([n, p]) => `<option value="${n}" ${n===e.preset?"selected":""}>${p.rotulo}</option>`).join("")}
         </select>
-        ${aj ? `<label class="ajuste">${aj.rot}
-            <input type="range" min="${aj.min}" max="${aj.max}" value="${e.qualidade ?? aj.padrao}"
+        ${aj ? `<label class="ajuste">arquivo menor
+            <input type="range" min="${aj.min}" max="${aj.max}"
+                   value="${aj.inv ? aj.min + aj.max - (e.qualidade ?? aj.padrao) : (e.qualidade ?? aj.padrao)}"
                    data-tipo="${tipo}" class="sl-q">
-            <output>${e.qualidade ?? aj.padrao}</output></label>` : ""}
+            mais qualidade</label>` : ""}
         ${PRESETS[e.preset]?.handler === "video_alvo" ? `<label class="ajuste">alvo MB
             <input type="number" min="1" max="2000" value="${e.alvo ?? PRESETS[e.preset].alvo_mb ?? 25}"
                    data-tipo="${tipo}" class="in-alvo"></label>` : ""}
@@ -338,8 +342,9 @@ $("#grupos").addEventListener("change", ev => {
 });
 $("#grupos").addEventListener("input", ev => {
   if (ev.target.classList.contains("sl-q")) {
-    escolhas[ev.target.dataset.tipo].qualidade = +ev.target.value;
-    ev.target.nextElementSibling.value = ev.target.value;
+    const e = escolhas[ev.target.dataset.tipo];
+    const aj = alvoAjuste(e.preset);
+    e.qualidade = aj.inv ? aj.min + aj.max - +ev.target.value : +ev.target.value;
   } else if (ev.target.classList.contains("in-alvo")) {
     escolhas[ev.target.dataset.tipo].alvo = +ev.target.value || null;
   }

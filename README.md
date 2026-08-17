@@ -6,16 +6,21 @@ Substitui os .bat espalhados (comprimir imagem, Real-ESRGAN, comprimir vídeo).
 
 ## O que faz
 
+31 presets com **nome de gente** — o resultado está no nome, não o parâmetro
+("Comprimir muito (bem menor, perde um pouco)" em vez de "crf30"):
+
 | Categoria | Presets |
 |---|---|
-| Imagem | WebP leve/boa/**sem perda de verdade**, AVIF, reduzir p/ 1920 |
-| IA (GPU) | Upscale 4x, 4x anime, restaurar (4x→tamanho original), upscale 2x de vídeo |
-| Vídeo | leve (crf28), qualidade (crf20), Discord ≤25 MB (2-pass), AV1 rápido (GPU AMD), arquivar (SVT-AV1) |
-| Áudio | Opus 128k, MP3 V0, extrair áudio de vídeo, normalizar volume (loudnorm 2-pass) |
-| PDF | ebook, tela (Ghostscript) |
-| Compactar | 7z ultra, zip — em qualquer arquivo e em pastas |
+| Imagem | Comprimir pouco/recomendado/muito, sem perda nenhuma, menor possível (AVIF), diminuir p/ tela 1920 / zap 1280, converter p/ JPG, GIF→vídeo |
+| IA (GPU) | Aumentar 4x (foto e anime), melhorar sem aumentar, aumentar vídeo 2x |
+| Vídeo | Comprimir pouco/recomendado/muito, rápido pela placa de vídeo, guardar no mínimo, caber em 25 MB (Discord) / 15 MB (WhatsApp), tirar o som |
+| Áudio | Comprimir (Opus), converter p/ MP3, tirar o som do vídeo, nivelar volume |
+| PDF | Comprimir p/ leitura / só tela / qualidade de impressão |
+| Compactar | 7z máximo, ZIP compatível, 7z em partes de 1 GB |
 
-Tudo em [presets.json](presets.json) — editável na mão; reinstalar o menu atualiza.
+Na janela, o ajuste fino é um slider único **"arquivo menor ⟵⟶ mais qualidade"**
+(a direção é sempre essa, independente do formato por trás). Tudo em
+[presets.json](presets.json) — editável na mão; reinstalar o menu atualiza.
 
 ## Usar
 
