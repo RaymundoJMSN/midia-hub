@@ -5,6 +5,7 @@ Instância única: se já houver janela aberta, a nova invocação só deposita 
 arquivo em GUI_JOBS e sai; a janela aberta pega sozinha.
 """
 import base64
+import ctypes
 import json
 import os
 import subprocess
@@ -240,16 +241,38 @@ def instancia_unica(arquivos):
     return True
 
 
+def _por_icone():
+    """pywebview no Windows não aceita ícone — WM_SETICON direto na janela."""
+    u32 = ctypes.windll.user32
+    ico = str(Path(__file__).parent / "icone.ico")
+    for _ in range(50):
+        hwnd = u32.FindWindowW(None, "Mídia Hub")
+        if hwnd:
+            break
+        time.sleep(0.1)
+    else:
+        return
+    for tam, tipo in ((16, 0), (32, 1)):  # ICON_SMALL, ICON_BIG
+        h = u32.LoadImageW(None, ico, 1, tam, tam, 0x10)  # IMAGE_ICON, LR_LOADFROMFILE
+        if h:
+            u32.SendMessageW(hwnd, 0x0080, tipo, h)  # WM_SETICON
+
+
 def main():
     arquivos = [a for a in sys.argv[1:] if Path(a).exists()]
     if not instancia_unica(arquivos):
         return
     try:
+        # identidade própria na barra de tarefas (senão agrupa como "Python")
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("RaymundoJMSN.MidiaHub")
+    except Exception:
+        pass
+    try:
         api = Api(arquivos)
         webview.create_window(
             "Mídia Hub", str(Path(__file__).parent / "gui.html"),
             js_api=api, width=980, height=760, background_color="#14161a")
-        webview.start()
+        webview.start(_por_icone)
     finally:
         GUI_LOCK.unlink(missing_ok=True)
 
