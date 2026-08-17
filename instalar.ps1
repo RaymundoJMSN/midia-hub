@@ -9,6 +9,7 @@ $python = (Get-Command python).Source
 $pythonw = Join-Path (Split-Path $python) 'pythonw.exe'
 $midia = Join-Path $aqui 'midia.py'
 $app = Join-Path $aqui 'app.py'
+$icone = Join-Path $aqui 'icone.ico'
 # reg.exe em vez do provider HKCU: por causa da chave literal "*" (PS trata * como wildcard)
 $classes = 'HKCU\Software\Classes'
 
@@ -67,6 +68,7 @@ function New-Verbo($chavePai, $nome, $rotulo, $preset) {
 function New-Submenu($raiz, $rotulo, $propriedades, [switch]$ComAbrir) {
     reg add $raiz /v MUIVerb /t REG_SZ /d $rotulo /f | Out-Null
     reg add $raiz /v SubCommands /t REG_SZ /d '' /f | Out-Null
+    reg add $raiz /v Icon /t REG_SZ /d $icone /f | Out-Null
     $i = 1
     if ($ComAbrir) {
         $k = "$raiz\shell\00-abrir"
@@ -101,6 +103,7 @@ $atalho = $ws.CreateShortcut($lnk)
 $atalho.TargetPath = $pythonw
 $atalho.Arguments = "`"$app`""
 $atalho.WorkingDirectory = $aqui
+$atalho.IconLocation = $icone
 $atalho.Save()
 
 $n = ($todasExts | Measure-Object).Count
