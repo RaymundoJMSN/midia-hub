@@ -106,6 +106,51 @@ $atalho.WorkingDirectory = $aqui
 $atalho.IconLocation = $icone
 $atalho.Save()
 
+# AppUserModelID no atalho: é o que faz a barra de tarefas tratar como app de
+# verdade (nome/ícone próprios, fixar funciona) em vez de "Python"
+if (-not ([System.Management.Automation.PSTypeName]'LnkAumid').Type) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+
+public static class LnkAumid {
+    [ComImport, Guid("00021401-0000-0000-C000-000000000046")]
+    class ShellLinkCo {}
+
+    [ComImport, Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"),
+     InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IPropertyStore {
+        int GetCount(out uint c);
+        int GetAt(uint i, out PropKey k);
+        int GetValue(ref PropKey k, out PropVar v);
+        int SetValue(ref PropKey k, ref PropVar v);
+        int Commit();
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct PropKey { public Guid fmtid; public uint pid; }
+
+    [StructLayout(LayoutKind.Explicit)]
+    struct PropVar { [FieldOffset(0)] public ushort vt; [FieldOffset(8)] public IntPtr p; }
+
+    public static void Set(string lnk, string aumid) {
+        object link = new ShellLinkCo();
+        ((IPersistFile)link).Load(lnk, 2); // STGM_READWRITE
+        var chave = new PropKey {
+            fmtid = new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"), pid = 5 };
+        var valor = new PropVar { vt = 31, p = Marshal.StringToCoTaskMemUni(aumid) };
+        var loja = (IPropertyStore)link;
+        loja.SetValue(ref chave, ref valor);
+        loja.Commit();
+        ((IPersistFile)link).Save(lnk, true);
+        Marshal.FreeCoTaskMem(valor.p);
+    }
+}
+'@
+}
+[LnkAumid]::Set($lnk, 'RaymundoJMSN.MidiaHub')
+
 $n = ($todasExts | Measure-Object).Count
 Write-Host "Menu 'Mídia' instalado para $n extensões + 'Compactar' em arquivos e pastas."
 Write-Host "Atalho 'Mídia Hub' criado no Menu Iniciar."
