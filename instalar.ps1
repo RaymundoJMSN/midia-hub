@@ -9,7 +9,14 @@ $python = (Get-Command python).Source
 $pythonw = Join-Path (Split-Path $python) 'pythonw.exe'
 $midia = Join-Path $aqui 'midia.py'
 $app = Join-Path $aqui 'app.py'
-$icone = Join-Path $aqui 'icone.ico'
+# cópia com hash no nome: o cache de ícones do Windows é por caminho, então
+# ícone novo com o mesmo nome continuaria aparecendo velho na barra/menus
+$hash = (Get-FileHash (Join-Path $aqui 'icone.ico') -Algorithm MD5).Hash.Substring(0, 8).ToLower()
+$icone = "X:\midia-hub\icone-$hash.ico"
+if (-not (Test-Path $icone)) {
+    Get-ChildItem 'X:\midia-hub\icone-*.ico' -ErrorAction SilentlyContinue | Remove-Item -Force
+    Copy-Item (Join-Path $aqui 'icone.ico') $icone
+}
 # reg.exe em vez do provider HKCU: por causa da chave literal "*" (PS trata * como wildcard)
 $classes = 'HKCU\Software\Classes'
 
